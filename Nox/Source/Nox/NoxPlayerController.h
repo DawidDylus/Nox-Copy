@@ -15,29 +15,30 @@ public:
 	ANoxPlayerController();
 
 protected:
-	/** True if the controlled character should navigate to the mouse cursor. */
-	uint32 bMoveToMouseCursor : 1;
-
 	// Begin PlayerController interface
 	virtual void PlayerTick(float DeltaTime) override;
 	virtual void SetupInputComponent() override;
 	// End PlayerController interface
 
-	/** Resets HMD orientation in VR. */
-	void OnResetVR();
+public:	
 
-	/** Navigate player to the current mouse cursor location. */
-	void MoveToMouseCursor();
+	void RotateToCursor();
 
-	/** Navigate player to the current touch location. */
-	void MoveToTouchLocation(const ETouchIndex::Type FingerIndex, const FVector Location);
+	void MoveForward(float Value);
+
+	// Length of a line betwen pawn and a cursor to change walking speed
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
+	float DistanceToChangeWalkingSpeed;
+
+	// Walking speed percentage based of Maximum speed - maximum 1 (100%)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
+	float WalkingSpeedPercentage;
+
+private:
+
+FHitResult HitUnderCursor;
 	
-	/** Navigate player to the given world location. */
-	void SetNewMoveDestination(const FVector DestLocation);
-
-	/** Input handlers for SetDestination action. */
-	void OnSetDestinationPressed();
-	void OnSetDestinationReleased();
+	
 };
 
 

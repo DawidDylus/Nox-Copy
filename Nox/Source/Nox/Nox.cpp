@@ -5,5 +5,4 @@
 
 IMPLEMENT_PRIMARY_GAME_MODULE( FDefaultGameModuleImpl, Nox, "Nox" );
 
-DEFINE_LOG_CATEGORY(LogNox)
- 
+DEFINE_LOG_CATEGORY(LogNox) 
