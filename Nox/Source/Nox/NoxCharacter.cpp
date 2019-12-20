@@ -12,6 +12,8 @@
 #include "Materials/Material.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
+#include "Components/WidgetComponent.h"
+#include "TimerManager.h"
 
 #define ECC_CameraView ECC_GameTraceChannel2
 
@@ -50,22 +52,52 @@ ANoxCharacter::ANoxCharacter()
 	CursorToWorld->DecalSize = FVector(16.0f, 32.0f, 32.0f);
 	CursorToWorld->SetRelativeRotation(FRotator(90.0f, 0.0f, 0.0f).Quaternion());
 
+	// Create widget above character
+	InformationBar = CreateDefaultSubobject<UWidgetComponent>("Information Bar");
+	InformationBar->SetupAttachment(RootComponent);
+	InformationBar->SetRelativeLocation(FVector(0.0f, 0.0f, 160.0f));
+	InformationBar->SetDrawSize(FVector2D(120.0f, 500.0f));
+	InformationBar->SetWidgetSpace(EWidgetSpace::Screen);
+	
+	// Set default attributes
+	MaxHealth = 100.f;
+	Health = 75.f;
+
+	// Set health percentage
+	HealthPercentage = 0.75f;
+	//UE_LOG(LogTemp, Warning, TEXT("Original DMG | Health Percentage: %f"), HealthPercentage);
+
+	// Set default attack parameters
+	bCanBeDamaged = true;
+	AttackDamage = 25.f;
+	AttackRange = 125.f;
+	bIsWeaponEquiped = false;
+	DelayTimeToUnarmedStrike = 0.f;
 	// Activate ticking in order to update the cursor every frame.
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;		
+		
+}
+
+
+void ANoxCharacter::BeginPlay()
+{
+	// Call the base class  
+	Super::BeginPlay();
 	
+
 }
 
 void ANoxCharacter::Tick(float DeltaSeconds)
 {
-	Super::Tick(DeltaSeconds);	
-
+	Super::Tick(DeltaSeconds);		
 	
 	TArray<FHitResult> CameraViewHits;
-	CameraViewPointCollisions(OUT CameraViewHits);	
+	GetCameraViewPointCollisions(OUT CameraViewHits);	
 		
-	ChangeMaterialOfCollidingObjects(CameraViewHits, TranslucentMaterial, true);
-	
+	ChangeMaterialOfCollidingObjects(CameraViewHits, TranslucentMaterial, true);	
+
+
 }
 
 void ANoxCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -74,10 +106,11 @@ void ANoxCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
+	PlayerInputComponent->BindAction("Attack", IE_Pressed, this, &ANoxCharacter::Attack);
 
 }
 
-void ANoxCharacter::CameraViewPointCollisions(TArray<FHitResult>& OutHits)
+void ANoxCharacter::GetCameraViewPointCollisions(TArray<FHitResult>& OutHits)
 {	
 	// Find Character's CameraComponent StartLocation
 	const FVector StartLocation = TopDownCameraComponent->GetComponentLocation();
@@ -115,11 +148,12 @@ void ANoxCharacter::ChangeMaterialOfCollidingObjects(const TArray<FHitResult>& C
 		}
 		else
 		{
-			// error code
+			// Error code
 			UE_LOG(LogTemp, Warning, TEXT("(ChangeMaterialWhileColliding) Pointer to NewMaterial is not found!"));
 			return;
 		}
 	}	
+
 /// Restore original material, remove elements from array
 
 	// Check if any object stopped colliding. If bRestoreOriginalMaterial is false, this condition is also false (ObjectsWithChangedMaterial always 0).
@@ -158,5 +192,106 @@ void ANoxCharacter::ChangeMaterialOfCollidingObjects(const TArray<FHitResult>& C
 		}
 	}
 }
+
+float ANoxCharacter::CalculatePercentage(const int CurrentValue, const int MaxValue)
+{
+	const float Percentage = CurrentValue / MaxValue;
+
+	return Percentage;
+}
+
+float ANoxCharacter::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	// Call the base class - this will tell us how much damage to apply  
+	const float ActualDamage = Super::TakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser);
+	if (ActualDamage > 0.f && Health > 0.f)
+	{
+		// Specify variable for health and apply damage.
+		Health -= ActualDamage;
+
+		UE_LOG(LogTemp, Warning, TEXT("Before DMG | Health Percentage: %f"), HealthPercentage);
+		// Update health procentage for correct operation of widgets.
+		//HealthPercentage = CalculatePercentage(Health, MaxHealth);
+		HealthPercentage -= 0.25f;
+	
+		// If the damage depletes our health set our lifespan to zero - which will destroy the actor  
+		//if (Health <= 0.f)
+		//{
+			// TODO if actor died play dead animation, else if static mesh destroyed change lifespawn and spawn debris of 
+			//SetLifeSpan(0.001f);
+		//}
+
+		
+		//UE_LOG(LogTemp, Warning, TEXT("Current Health: %d"), Health);
+		UE_LOG(LogTemp, Warning, TEXT("After DMG | Health Percentage: %f"), HealthPercentage);
+	}
+
+	return ActualDamage;
+}
+
+void ANoxCharacter::GetActorFrontCollision(FHitResult& OutHitResult)
+{
+	// Find Character's Character StartLocation
+	const FVector StartLocation = GetActorLocation();
+	// Find Character's EndLocation 
+	const FVector EndLocation = (StartLocation + (GetActorForwardVector() * AttackRange));
+
+	// Ignore actor instigating the event
+	FCollisionQueryParams QueryParams;	
+	QueryParams.AddIgnoredActor(GetUniqueID());
+
+	// Line trace for collision  
+	GetWorld()->LineTraceSingleByChannel(OutHitResult, StartLocation, EndLocation, ECollisionChannel::ECC_Camera, QueryParams);	
+
+	DrawDebugLine(GetWorld(), StartLocation, EndLocation, FColor::Red, false, 200, 1, 3);
+}
+
+void ANoxCharacter::InflictDamage(const float Damage, const FHitResult& Target)
+{
+	FDamageEvent DamageEvent;
+
+	// Call function TakeDamage on Target
+	Target.GetActor()->TakeDamage(Damage, DamageEvent, GetController(), this);
+	UE_LOG(LogTemp, Warning, TEXT("Damage Inflicted"));
+}
+
+void ANoxCharacter::UnarmedStrike()
+{
+	FHitResult Hit;
+	GetActorFrontCollision(OUT Hit);	
+
+	// Check if attack hit something and it can be damaged
+	if (Hit.bBlockingHit && Hit.GetActor()->bCanBeDamaged)
+	{
+		InflictDamage(AttackDamage, Hit);		
+	}
+}
+
+void ANoxCharacter::Attack()
+{
+	if (!bIsWeaponEquiped)
+	{
+		// Play animation for attacking without weapon 
+		if (UnarmedStrikeAnimMontage != NULL)
+		{
+			PlayAnimMontage(UnarmedStrikeAnimMontage);
+
+			// Create Timer Handle for animation montage
+			FTimerHandle InflictDamageTimerHandle;
+
+			GetWorldTimerManager().SetTimer(InflictDamageTimerHandle, this, &ANoxCharacter::UnarmedStrike, DelayTimeToUnarmedStrike, false);			
+		}	
+		else
+		{
+			// Error code
+			UE_LOG(LogTemp, Warning, TEXT("Pointer to UnarmedStrikeAnimMontage is not found!"));
+		}
+	}
+	else 
+	{	
+
+	}	
+}
+
 
 
