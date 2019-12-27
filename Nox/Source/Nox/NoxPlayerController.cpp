@@ -5,7 +5,7 @@
 #include "Runtime/Engine/Classes/Components/DecalComponent.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
 #include "NoxCharacter.h"
-#include "Engine/World.h"
+#include "Animation/AnimInstance.h"
 #include "Kismet/KismetMathLibrary.h"
 
 #define ECC_CursorMovement ECC_GameTraceChannel1
@@ -17,6 +17,8 @@ ANoxPlayerController::ANoxPlayerController()
 
 	DistanceToChangeWalkingSpeed = 120.0f;
 	WalkingSpeedPercentage = 0.25f;
+
+	
 }
 
 void ANoxPlayerController::PlayerTick(float DeltaTime)
@@ -26,8 +28,15 @@ void ANoxPlayerController::PlayerTick(float DeltaTime)
 	// Find what is under cursor 
 	GetHitResultUnderCursor(ECollisionChannel::ECC_CursorMovement, true, OUT HitUnderCursor);
 
-	// Rotate front of the pawn to point at cursor
-	RotateToCursor();	
+	// Check if any montage is playing on controlled character and turn off character rotation during play time
+	const bool bCanCharacterRotate = !GetCharacter()->GetMesh()->GetAnimInstance()->IsAnyMontagePlaying();
+
+	if (bCanCharacterRotate)
+	{
+		// Rotate front of the pawn to point at cursor
+		RotatePawnToCursor();
+	}
+	
 	
 	
 	
@@ -42,7 +51,7 @@ void ANoxPlayerController::SetupInputComponent()
 		
 }
 
-void ANoxPlayerController::RotateToCursor()
+void ANoxPlayerController::RotatePawnToCursor()
 {
 	// Find new pawn rotation based on start location and target location.
 	const FRotator NewPawnRotation = UKismetMathLibrary::FindLookAtRotation(GetPawn()->GetActorLocation(), HitUnderCursor.Location);

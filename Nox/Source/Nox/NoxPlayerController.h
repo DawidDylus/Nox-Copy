@@ -22,7 +22,7 @@ protected:
 
 public:	
 
-	void RotateToCursor();
+	void RotatePawnToCursor();
 
 	void MoveForward(float Value);
 
@@ -34,7 +34,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
 	float WalkingSpeedPercentage;
 
-private:
+private:	
 
 FHitResult HitUnderCursor;
 	

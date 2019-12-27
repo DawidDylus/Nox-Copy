@@ -9,5 +9,6 @@ public class NoxEditorTarget : TargetRules
 	{
 		Type = TargetType.Editor;
 		ExtraModuleNames.Add("Nox");
+		DefaultBuildSettings = BuildSettingsVersion.V2;
 	}
 }

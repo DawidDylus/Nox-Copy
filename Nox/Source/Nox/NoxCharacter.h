@@ -28,7 +28,7 @@ class ANoxCharacter : public ACharacter
 	class UWidgetComponent* InformationBar;	
 
 public:
-	ANoxCharacter();	
+	ANoxCharacter();		
 
 protected:
 	// APawn interface	
@@ -42,30 +42,28 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera Visibility")
 	UMaterialInterface* TranslucentMaterial;	
 
-	/// Atribute parameters
 	// Current Health and Mana values
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Attributes")
-		int Health;
+		float Health;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Attributes")
-		int Mana;
+		float Mana;
 
 	// Maximum Health and Mana values
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Attributes")
-		int MaxHealth;	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attributes")
+		float MaxHealth;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Attributes")
-		int MaxMana;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attributes")
+		float MaxMana;
 
 	// Percentage values of Health and Mana
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attributes")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Attributes")
 		float HealthPercentage;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attributes")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Attributes")
 		float ManaPercentage;	
 
-
-	/// Attack paramaters
+	// Range of attacks 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")
 		float AttackRange;
 
@@ -73,15 +71,22 @@ protected:
 		float AttackDamage;
 
 	// Animation montage to play when attack without a weapon is done 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack Animation")
 		class UAnimMontage* UnarmedStrikeAnimMontage;
 
 	// Time in seconds that corresponds to moment the damage should be done
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")
-		float DelayTimeToUnarmedStrike;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack Animation")
+		float DelayTimeForUnarmedStrike;	
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Attack")
-		bool bIsWeaponEquiped;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
+		 TSubclassOf<class ABaseWeapon> WeaponClassToEquip;
+
+private:
+	bool bIsWeaponEquiped;
+
+	ABaseWeapon* EquippedWeapon;		
+	
+public:
 
 private:		
 	// Return objects that cover camera view on pawn 
@@ -107,19 +112,28 @@ private:
 	 /** Calculate percentage based on current value and max value
 	*@return - Value between 0 and 1
 	*/
-	 float CalculatePercentage(const int CurrentValue, const int MaxValue);
+	 float CalculatePercentage(const float CurrentValue, const float MaxValue);
 
 	 float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, class AActor* DamageCauser) override;
 
-	 // Line trace single collision in front of this character by channel
-	 void GetActorFrontCollision(FHitResult& OutHitResult);
+	 // Line trace single collision in front of this character in specified range (Raycast by channel) 
+	 void GetActorSingleFrontCollision(FHitResult& OutHitResult, const float RaycastRange, const ECollisionChannel CollisionChannel);	
 
+	 /** Unanimated attack to front of this character
+	 *@note Name of this function is used in the delegate in UnarmedStrike. This delegate reference will not be change automatically
+	 */
 	 UFUNCTION()
-	 void InflictDamage(const float Damage, const FHitResult& Hit);
+	 void DealDamageForward(const float Damage, const float Range);
 
-	 void UnarmedStrike();
+	 /** Play attack animation and deal basic damage to actors in front of this character
+	 *@param AnimMontageToPlay - Montage to play 
+	 *@param DelayTimeForDealingDamage - Delay time for raycast to fire. Use to match animation and dealing damage.  (default - 0 sec)
+	 */
+	 void UnarmedAttack(UAnimMontage* AnimMontageToPlay, const float DelayTimeForDealingDamage, float InAttackDamage, float InAttackRange);
 
 	 void Attack();
+
+	 void EquipWeapon();
 public:
 	/** Returns TopDownCameraComponent subobject **/
 	FORCEINLINE class UCameraComponent* GetTopDownCameraComponent() const { return TopDownCameraComponent; }
