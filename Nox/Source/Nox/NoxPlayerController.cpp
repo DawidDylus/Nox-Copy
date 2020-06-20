@@ -16,9 +16,9 @@ ANoxPlayerController::ANoxPlayerController()
 	DefaultMouseCursor = EMouseCursor::Crosshairs;
 
 	DistanceToChangeWalkingSpeed = 120.0f;
-	WalkingSpeedPercentage = 0.25f;
+	WalkingSpeedPercentage = 0.25f;	
 
-	
+	TeamId = FGenericTeamId(0);
 }
 
 void ANoxPlayerController::PlayerTick(float DeltaTime)
@@ -27,17 +27,12 @@ void ANoxPlayerController::PlayerTick(float DeltaTime)
 	
 	// Find what is under cursor 
 	GetHitResultUnderCursor(ECollisionChannel::ECC_CursorMovement, true, OUT HitUnderCursor);
-
-	// Check if any montage is playing on controlled character and turn off character rotation during play time
-	const bool bCanCharacterRotate = !GetCharacter()->GetMesh()->GetAnimInstance()->IsAnyMontagePlaying();
-
-	if (bCanCharacterRotate)
+	
+	if (CanCharacterRotate())
 	{
 		// Rotate front of the pawn to point at cursor
 		RotatePawnToCursor();
-	}
-	
-	
+	}	
 	
 	
 }
@@ -73,8 +68,29 @@ void ANoxPlayerController::MoveForward(float Value)
 		if (DistanceToCursor < DistanceToChangeWalkingSpeed)
 		{
 			Value = WalkingSpeedPercentage;					
-		}		
-			
+		}					
 		GetPawn()->AddMovementInput(Direction, Value);		
 	}	
+}
+
+
+bool ANoxPlayerController::CanCharacterRotate() 
+{
+	// Check if any montage is playing on controlled character and turn off character rotation if montage that is played have root motion enabled
+	if (GetCharacter()->GetMesh()->GetAnimInstance()->IsAnyMontagePlaying())
+	{
+		if (GetCharacter()->GetMesh()->GetAnimInstance()->GetRootMotionMontageInstance() != NULL)
+		{
+			bCanCharacterRotate = !GetCharacter()->GetMesh()->GetAnimInstance()->GetRootMotionMontageInstance();
+		}
+		else
+		{
+			bCanCharacterRotate = true;
+		}
+	}
+	else
+	{
+		bCanCharacterRotate = true;
+	}
+	return bCanCharacterRotate;
 }

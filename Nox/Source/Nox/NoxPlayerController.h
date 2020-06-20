@@ -3,11 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GenericTeamAgentInterface.h"
 #include "GameFramework/PlayerController.h"
 #include "NoxPlayerController.generated.h"
 
 UCLASS()
-class ANoxPlayerController : public APlayerController
+class ANoxPlayerController : public APlayerController, public IGenericTeamAgentInterface
 {
 	GENERATED_BODY()
 
@@ -17,14 +18,23 @@ public:
 protected:
 	// Begin PlayerController interface
 	virtual void PlayerTick(float DeltaTime) override;
+	
 	virtual void SetupInputComponent() override;
 	// End PlayerController interface
+
+private:
+	FGenericTeamId TeamId;
+
+public:
+	virtual FGenericTeamId GetGenericTeamId() const override { return TeamId; }
 
 public:	
 
 	void RotatePawnToCursor();
 
 	void MoveForward(float Value);
+
+	bool CanCharacterRotate();
 
 	// Length of a line betwen pawn and a cursor to change walking speed
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
@@ -34,9 +44,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
 	float WalkingSpeedPercentage;
 
-private:	
+private:
+	bool bCanCharacterRotate;	
 
-FHitResult HitUnderCursor;
+	FHitResult HitUnderCursor;
 	
 	
 };
